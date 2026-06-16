@@ -1,44 +1,34 @@
 # Инструкция по транскрипции интервью через RAIA
 
-## Подготовка
+## Способ 1 — Через локальный Web UI (рекомендуется)
 
-После записи интервью сохраните файл в формате:
+1. Дважды кликни по **RAIA.command** на рабочем столе
+2. Автоматически откроется браузер на `http://localhost:7860`
+3. Перетащи файл интервью в зону загрузки (поддерживается .webm, .flac, .mp3, .wav)
+4. Нажми **▶ Запустить транскрипцию**
+5. Дождись результата — транскрипт появится в поле ниже и будет доступен для редактирования
+6. Чтобы остановить сервер — закрой окно терминала
 
-```text
-interview.webm
-```
-
-Файл необходимо поместить в папку:
-
-```text
-RAIA/audio
-```
-
-Название файла может быть любым, однако в примерах используется:
-
-```text
-interview.webm
-```
+> Конвертация .webm → FLAC происходит автоматически внутри UI. VLC и ручная конвертация не нужны.
 
 ---
 
-## Запуск транскрипции
+## Способ 2 — Через терминал (резервный)
 
 Откройте терминал и выполните команду:
 
 ```bash
-cd ~/RAIA && \
-source ~/raia-env/bin/activate && \
-mkdir -p audio output && \
-ffmpeg -i audio/interview.webm -ac 1 -ar 16000 -c:a flac audio/interview.flac && \
-whisperx audio/interview.flac \
-  --model ~/whisper_models/turbo \
-  --language ru \
-  --compute_type int8 \
-  --output_dir output \
-  --batch_size 4 \
-  --vad_method silero \
-  --output_format srt,txt,json
+cd ~/RAIA && source raia-env/bin/activate && mkdir -p audio && ffmpeg -i audio/interview.webm -ac 1 -ar 16000 -c:a flac audio/interview.flac && whisperx audio/interview.flac --model ~/whisper_models/turbo --language ru --compute_type int8 --output_dir output --batch_size 4 --vad_method silero --output_format srt,txt,json
+```
+
+---
+
+## Подготовка файла
+
+Файл интервью может быть любого поддерживаемого формата. При использовании UI конвертация происходит автоматически. При запуске через терминал поместите файл в папку:
+
+```text
+RAIA/audio/interview.webm
 ```
 
 ---
@@ -55,42 +45,29 @@ whisperx audio/interview.flac \
 * MacBook Air M2
 * 8 ГБ ОЗУ
 
-Во время обработки будет отображаться прогресс выполнения.
-
 ---
 
 ## Результат
 
-После завершения работы в папке:
-
-```text
-RAIA/output
-```
-
-появятся файлы:
+После завершения в папке `RAIA/output` появятся файлы:
 
 ### interview.txt
-
 Чистая текстовая расшифровка интервью.
 
 ### interview.json
-
-Структурированные сегменты с временными метками.
-
-Используется для дальнейшего анализа через LLM.
+Структурированные сегменты с временными метками. Используется для дальнейшего анализа через LLM.
 
 ### interview.srt
-
-Файл субтитров с временными метками.
-
-Подходит для просмотра и ручной проверки интервью.
+Файл субтитров с временными метками. Подходит для просмотра и ручной проверки.
 
 ---
 
 ## Текущий статус
 
 Работает:
+* Web UI (Gradio) — запуск через RAIA.command
 * WhisperX Turbo
+* Автоконвертация .webm → FLAC
 * Русский язык
 * Silero VAD
 * TXT, JSON, SRT
