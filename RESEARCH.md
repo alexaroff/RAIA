@@ -159,6 +159,21 @@ TXT / JSON / SRT
 
 ---
 
+## Эксперимент №6 — Локальный Web UI (Gradio)
+
+**Цель:** создать удобный интерфейс для работы с пайплайном без терминала.
+
+**Стек:** Gradio 4.43.0, Python 3.9
+
+**Проблемы:**
+- Баг в gradio-client с Python 3.9: `TypeError: argument of type 'bool' is not iterable`
+- Решение: патч `_json_schema_to_python_type` в utils.py — добавлен guard `isinstance(schema, dict)`
+- localhost недоступен на macOS без `server_name="0.0.0.0"`
+
+**Результат:** ✅ UI запущен, работает drag & drop загрузка аудио и запуск транскрипции
+
+---
+
 ## Аналитика по инструментам
 
 ### Транскрипция
