@@ -30,5 +30,3 @@
 
 ## Связанные материалы
 - [Полный цикл найма](full_cycle.md)
-- [RAIA_AI_TEAM.md](../../RAIA_AI_TEAM.md)
-- [ROADMAP.md](../../ROADMAP.md)
