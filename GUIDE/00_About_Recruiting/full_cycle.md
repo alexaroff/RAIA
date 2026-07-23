@@ -29,7 +29,7 @@
 
 Активный поиск кандидатов по всем доступным каналам:
 - Boolean search и X-Ray
-- LinkedIn, GitHub, Telegram, TenChat, Сетка, Reddit, Habr Career
+- LinkedIn, GitHub, HeadHunter, Telegram, TenChat, Сетка, Reddit, Habr Career
 - Реферальные программы
 - Конференции и митапы
 - Собственная база / talent pool
