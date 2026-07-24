@@ -1,13 +1,12 @@
 """
 RAIA Tool — Local Transcription Pipeline (Phase 1)
 Optimized for Apple Silicon M2/M3/M4 with 8–32 GB unified memory.
-Primary backend: mlx-whisper (large-v3-turbo by default).
 
 Design goals:
 - Low peak memory (model unload after use, limited threads)
 - Good Russian quality
 - Reproducible
-- Easy to swap backends later (GigaAM-v3 MLX etc.)
+- Easy to swap backends (GigaAM later)
 """
 
 from __future__ import annotations
@@ -16,19 +15,21 @@ import json
 import logging
 import os
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from .backends import MLXWhisperBackend, TranscriptionBackend, BackendResult
 from .preprocess import preprocess_audio, get_audio_duration
 from .vad import get_speech_timestamps, merge_close_segments
 
 logger = logging.getLogger(__name__)
 
-# Limit OpenMP / BLAS threads early to prevent overheating on 8 GB M2
+# Limit OpenMP / BLAS threads early — critical on M2 8 GB
 os.environ.setdefault("OMP_NUM_THREADS", "2")
 os.environ.setdefault("MKL_NUM_THREADS", "2")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "2")
+os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "2")
 
 
 @dataclass
@@ -40,6 +41,7 @@ class TranscriptionResult:
     processing_time_s: float
     model: str
     backend: str = "mlx-whisper"
+    vad_segments: Optional[List[Dict[str, float]]] = field(default=None)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -54,7 +56,6 @@ class TranscriptionResult:
         )
 
     def save_srt(self, path: Union[str, Path]) -> None:
-        """Write basic SRT from segments (if timestamps present)."""
         lines = []
         for i, seg in enumerate(self.segments, 1):
             start = seg.get("start", 0.0)
@@ -82,20 +83,10 @@ class LocalTranscriber:
     Main entry point for local transcription.
 
     Example:
-        t = LocalTranscriber(model="mlx-community/whisper-large-v3-turbo")
+        t = LocalTranscriber(model="turbo")
         result = t.transcribe("interview.webm", language="ru")
         result.save_txt("out.txt")
-        result.save_json("out.json")
-        result.save_srt("out.srt")
     """
-
-    # Recommended models for different RAM budgets
-    MODELS = {
-        "turbo": "mlx-community/whisper-large-v3-turbo",      # ~1.6 GB, best balance 8–16 GB
-        "medium": "mlx-community/whisper-medium",             # safer for tight 8 GB
-        "small": "mlx-community/whisper-small",               # very low mem, lower quality
-        "large": "mlx-community/whisper-large-v3",            # highest quality, needs ≥16 GB comfortably
-    }
 
     def __init__(
         self,
@@ -103,37 +94,31 @@ class LocalTranscriber:
         language: Optional[str] = "ru",
         use_vad: bool = True,
         word_timestamps: bool = True,
+        backend: Optional[TranscriptionBackend] = None,
         verbose: bool = False,
     ):
         """
-        model: short name ("turbo") or full HF/mlx path
-        language: "ru" recommended for interviews; None = auto-detect
+        model: short name ("turbo"/"medium"/"small"/"large") or full repo id
+        language: "ru" recommended; None = auto-detect
+        use_vad: run Silero VAD (useful for long files, currently informational)
+        backend: optional custom backend (default = MLXWhisperBackend)
         """
-        self.model_id = self.MODELS.get(model, model)
         self.language = language
         self.use_vad = use_vad
         self.word_timestamps = word_timestamps
         self.verbose = verbose
-        self._model = None  # lazy load
+
+        if backend is not None:
+            self.backend = backend
+        else:
+            self.backend = MLXWhisperBackend(model=model)
 
         if verbose:
-            logging.basicConfig(level=logging.INFO)
-
-    def _load_model(self):
-        if self._model is not None:
-            return
-        try:
-            import mlx_whisper
-            # mlx_whisper does not keep a persistent model object in the simple API;
-            # we just validate that the package is present.
-            self._backend = "mlx-whisper"
-            logger.info("Backend: mlx-whisper | model: %s", self.model_id)
-        except ImportError as e:
-            raise ImportError(
-                "mlx-whisper is required for Apple Silicon. "
-                "Install: pip install mlx mlx-whisper\n"
-                "Note: only works on macOS with Apple Silicon."
-            ) from e
+            logging.basicConfig(
+                level=logging.INFO,
+                format="%(asctime)s | %(levelname)-7s | %(message)s",
+                datefmt="%H:%M:%S",
+            )
 
     def transcribe(
         self,
@@ -143,62 +128,68 @@ class LocalTranscriber:
         keep_preprocessed: bool = False,
     ) -> TranscriptionResult:
         """
-        Full pipeline: preprocess → (optional VAD) → STT → result.
+        Full pipeline:
+          1. FFmpeg preprocess → 16 kHz mono
+          2. Optional Silero VAD (logs speech regions)
+          3. STT via selected backend
+          4. Optional auto-save txt/json/srt
         """
         start_time = time.perf_counter()
         audio_path = Path(audio_path)
         lang = language or self.language
 
-        self._load_model()
+        if not audio_path.exists():
+            raise FileNotFoundError(f"Audio file not found: {audio_path}")
 
         # 1. Preprocess
         preprocessed = preprocess_audio(audio_path)
         duration = get_audio_duration(preprocessed)
-        logger.info("Audio duration: %.1f s", duration)
+        logger.info("Audio duration: %.1f s | backend=%s", duration, self.backend.name)
+
+        vad_segments: Optional[List[Dict[str, float]]] = None
 
         try:
-            # 2. Optional VAD (reduces work + helps long files on low RAM)
-            speech_segments = None
-            if self.use_vad and duration > 30:  # VAD mainly useful for longer files
-                speech_segments = get_speech_timestamps(preprocessed)
-                speech_segments = merge_close_segments(speech_segments)
-                logger.info("VAD found %d speech segments", len(speech_segments))
-            else:
-                speech_segments = None
+            # 2. VAD (currently informational + stored in result)
+            #    Full segment-wise transcription will be added after first real tests.
+            if self.use_vad and duration > 20:
+                try:
+                    vad_segments = get_speech_timestamps(preprocessed)
+                    vad_segments = merge_close_segments(vad_segments)
+                    speech_ratio = (
+                        sum(s["end"] - s["start"] for s in vad_segments) / duration
+                        if duration > 0 else 0
+                    )
+                    logger.info(
+                        "VAD: %d segments, speech ratio ≈ %.0f%%",
+                        len(vad_segments),
+                        speech_ratio * 100,
+                    )
+                except Exception as e:
+                    logger.warning("VAD skipped: %s", e)
+                    vad_segments = None
 
-            # 3. Transcribe with mlx-whisper
-            import mlx_whisper
-
-            # mlx_whisper.transcribe accepts path and returns dict with text + segments
-            # For long audio + low RAM we rely on internal chunking of the library.
-            # language="ru" forces Russian and improves quality for our domain.
-            result_dict = mlx_whisper.transcribe(
-                str(preprocessed),
-                path_or_hf_repo=self.model_id,
+            # 3. STT
+            backend_result: BackendResult = self.backend.transcribe(
+                preprocessed,
                 language=lang,
                 word_timestamps=self.word_timestamps,
                 verbose=self.verbose,
-                # Additional kwargs that help memory / quality
-                # (mlx-whisper passes many of them through)
             )
-
-            text = result_dict.get("text", "").strip()
-            segments = result_dict.get("segments", [])
-            detected_lang = result_dict.get("language", lang or "unknown")
 
             processing_time = time.perf_counter() - start_time
 
             result = TranscriptionResult(
-                text=text,
-                language=detected_lang,
-                segments=segments,
+                text=backend_result.text,
+                language=backend_result.language,
+                segments=backend_result.segments,
                 duration_s=duration,
                 processing_time_s=processing_time,
-                model=self.model_id,
-                backend="mlx-whisper",
+                model=getattr(self.backend, "model_id", self.backend.name),
+                backend=self.backend.name,
+                vad_segments=vad_segments,
             )
 
-            # Optional auto-save
+            # 4. Auto-save
             if output_dir is not None:
                 out = Path(output_dir)
                 out.mkdir(parents=True, exist_ok=True)
@@ -206,43 +197,46 @@ class LocalTranscriber:
                 result.save_txt(out / f"{stem}.txt")
                 result.save_json(out / f"{stem}.json")
                 result.save_srt(out / f"{stem}.srt")
-                logger.info("Saved outputs to %s", out)
+                logger.info("Saved → %s/{%s.txt,.json,.srt}", out, stem)
 
             rtf = duration / processing_time if processing_time > 0 else 0
             logger.info(
-                "Done in %.1fs (RTF ≈ %.1fx) | model=%s",
+                "Done in %.1fs (≈%.1fx realtime) | model=%s",
                 processing_time,
                 rtf,
-                self.model_id,
+                result.model,
             )
             return result
 
         finally:
-            # Clean temporary preprocessed file unless requested
             if not keep_preprocessed and preprocessed.exists():
                 try:
                     preprocessed.unlink()
                 except OSError:
                     pass
+            self.backend.unload()
 
-    def unload(self):
-        """Explicitly free resources (for long-running processes)."""
-        self._model = None
-        # Force GC on low-RAM machines
+    def unload(self) -> None:
+        self.backend.unload()
         import gc
         gc.collect()
 
 
-# Convenience function
 def transcribe_file(
     audio_path: str | Path,
     model: str = "turbo",
     language: str = "ru",
     use_vad: bool = True,
     output_dir: Optional[str | Path] = None,
+    verbose: bool = False,
 ) -> TranscriptionResult:
-    """One-shot transcription."""
-    t = LocalTranscriber(model=model, language=language, use_vad=use_vad)
+    """One-shot helper."""
+    t = LocalTranscriber(
+        model=model,
+        language=language,
+        use_vad=use_vad,
+        verbose=verbose,
+    )
     try:
         return t.transcribe(audio_path, output_dir=output_dir)
     finally:
