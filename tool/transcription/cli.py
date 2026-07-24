@@ -23,11 +23,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("audio", type=str, help="Path to audio file (webm/mp3/wav/flac/m4a...)")
     parser.add_argument(
-        "--model",
-        "-m",
+        "--model", "-m",
         default="turbo",
         choices=["turbo", "medium", "small", "large"],
-        help="Model size / quality trade-off",
+        help="Model size / quality vs memory trade-off",
     )
     parser.add_argument("--lang", "-l", default="ru", help="Language code (ru recommended)")
     parser.add_argument("--no-vad", action="store_true", help="Disable Silero VAD")
@@ -45,14 +44,17 @@ def main(argv: list[str] | None = None) -> int:
 
     logging.basicConfig(
         level=logging.INFO if args.verbose else logging.WARNING,
-        format="%(asctime)s | %(levelname)s | %(message)s",
+        format="%(asctime)s | %(levelname)-7s | %(message)s",
         datefmt="%H:%M:%S",
     )
 
     audio = Path(args.audio)
     if not audio.exists():
-        print(f"File not found: {audio}", file=sys.stderr)
+        print(f"✗ File not found: {audio}", file=sys.stderr)
         return 1
+
+    print(f"→ Transcribing: {audio.name}")
+    print(f"  model={args.model}  lang={args.lang}  vad={not args.no_vad}")
 
     t = LocalTranscriber(
         model=args.model,
@@ -68,18 +70,24 @@ def main(argv: list[str] | None = None) -> int:
             output_dir=args.output_dir,
             keep_preprocessed=args.keep_wav,
         )
+
         print("\n=== Transcription ===\n")
         print(result.text)
-        print(f"\n---")
-        print(f"Language: {result.language}")
-        print(f"Duration: {result.duration_s:.1f}s | Processing: {result.processing_time_s:.1f}s")
-        print(f"Model: {result.model}")
+        print("\n---")
+        print(f"Language     : {result.language}")
+        print(f"Duration     : {result.duration_s:.1f}s")
+        print(f"Processing   : {result.processing_time_s:.1f}s  (≈{result.duration_s / max(result.processing_time_s, 0.01):.1f}x realtime)")
+        print(f"Model        : {result.model}")
+        print(f"Backend      : {result.backend}")
+        if result.vad_segments is not None:
+            print(f"VAD segments : {len(result.vad_segments)}")
         if args.output_dir:
-            print(f"Saved to: {args.output_dir}")
+            print(f"Saved to     : {args.output_dir}/")
         return 0
+
     except Exception as e:
         logging.exception("Transcription failed")
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"✗ Error: {e}", file=sys.stderr)
         return 2
     finally:
         t.unload()

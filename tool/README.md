@@ -17,50 +17,35 @@
 
 ---
 
-## Фаза 1: Локальная транскрипция (текущая)
+## Фаза 1: Локальная транскрипция
 
 ### Выбранный стек (2026, Apple Silicon, 8 ГБ)
 
-| Компонент       | Решение                          | Почему |
-|-----------------|----------------------------------|--------|
-| STT             | **mlx-whisper** + `large-v3-turbo` | Лучший баланс скорость/качество/память на M-series. Native MLX, unified memory. |
-| VAD (опционально) | Silero VAD                      | Лёгкий, надёжный, уже проверен в предыдущих экспериментах |
-| Preprocess      | FFmpeg → 16 kHz mono WAV        | Стабильно, минимальный overhead |
-| Альтернатива RU | GigaAM-v3 (MLX community port)  | SOTA по русскому, меньше модель (~420 МБ). Планируется как backend №2 |
+| Компонент | Решение | Почему |
+|-----------|---------|--------|
+| STT | **mlx-whisper** + `large-v3-turbo` | Лучший баланс скорость/качество/память на M-series. Native MLX. |
+| VAD | Silero (опционально) | Лёгкий, уже проверен |
+| Preprocess | FFmpeg → 16 kHz mono | Стабильно, почти нулевой overhead |
+| Абстракция | `TranscriptionBackend` | Готов к GigaAM-v3 / whisper.cpp без ломки API |
 
-**Почему не WhisperX / faster-whisper / pyannote:**
-- WhisperX + PyTorch давал конфликты библиотек, высокий peak memory и перегрев на M2 8 ГБ.
-- faster-whisper (CTranslate2) слабее использует Metal/ANE.
-- mlx-whisper специально сделан под Apple Silicon и unified memory.
+**Почему не WhisperX:** конфликты библиотек + высокий peak memory + перегрев на M2 8 ГБ.
 
-**Модели по RAM:**
+### Модели по RAM
 
-- `turbo` (default) — ~1.6–2.3 ГБ runtime → комфортно на 8 ГБ
-- `medium` — ещё безопаснее
-- `large` — лучше качество, но комфортнее с 16+ ГБ
+- `turbo` (default) — ~1.6–2.5 ГБ → комфортно на 8 ГБ
+- `medium` — безопаснее
+- `large` — лучше качество, комфортнее с 16+ ГБ
 
-### Быстрый старт (macOS Apple Silicon)
+### Быстрый старт
 
 ```bash
-# 1. Системные зависимости
 brew install ffmpeg
-
-# 2. Python-окружение (рекомендуем uv или venv)
 cd tool
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -U pip
-pip install mlx mlx-whisper soundfile numpy rich
+python3.12 -m venv .venv && source .venv/bin/activate
+pip install -e ".[vad]"          # или без [vad]
 
-# (опционально, для VAD)
-pip install silero-vad torch torchaudio
-
-# 3. Запуск
 python -m tool.transcription.cli path/to/interview.webm \
-  --model turbo \
-  --lang ru \
-  -o ./output \
-  -v
+  --model turbo --lang ru -o ./output -v
 ```
 
 Или из кода:
@@ -68,13 +53,9 @@ python -m tool.transcription.cli path/to/interview.webm \
 ```python
 from tool.transcription import transcribe_file
 
-result = transcribe_file(
-    "interview.webm",
-    model="turbo",
-    language="ru",
-    output_dir="output/"
-)
+result = transcribe_file("interview.webm", model="turbo", language="ru")
 print(result.text)
+result.save_json("out.json")
 ```
 
 ### Структура
@@ -82,25 +63,36 @@ print(result.text)
 ```
 tool/
 ├── README.md
-├── requirements.txt
+├── pyproject.toml          ← современная упаковка (uv-ready)
+├── requirements.txt        ← временный, для справки
+├── .gitignore
 ├── transcription/
 │   ├── __init__.py
-│   ├── pipeline.py      ← основной класс LocalTranscriber
+│   ├── backends.py         ← абстракция (MLXWhisper + заготовка GigaAM)
+│   ├── pipeline.py         ← LocalTranscriber
 │   ├── preprocess.py
 │   ├── vad.py
 │   └── cli.py
-├── diarization/         ← фаза 2
-├── analysis/            ← фаза 3–4
-└── ui/                  ← фаза 5
+├── diarization/            ← фаза 6.2
+├── analysis/               ← фаза 6.3–6.4
+└── ui/                     ← фаза 6.5
 ```
 
-### Долгосрочные заметки
+### Что уже сделано без тестов
 
-- Абстракция backend уже заложена: можно добавить `GigaAMBackend` без ломки API.
-- На 16–32 ГБ можно спокойно брать `large-v3` + полноценную диаризацию.
-- Перегрев контролируется через `OMP_NUM_THREADS=2` (уже в коде).
-- Следующий шаг после стабилизации: настоящая диаризация (pyannote/MLX или WeSpeaker + clustering) и локальный LLM.
+- Backend abstraction (легко добавить GigaAM)
+- VAD пишет speech ratio + segments в результат
+- Жёсткое ограничение потоков (против перегрева)
+- pyproject.toml + .gitignore
+- Документация обновлена
+
+### Следующие улучшения (после первых реальных прогонов)
+
+1. Segment-wise transcription по VAD (если turbo будет давить на длинных файлах)
+2. Реальный GigaAMBackend
+3. Автовыбор модели по доступной RAM
+4. Диаризация
 
 ---
 
-**Важно:** код пока в активной разработке. Не используй с реальными кандидатами до тестов на своих файлах и проверки качества русского.
+**Важно:** код в активной разработке. Не используй с реальными кандидатами до проверки качества на своих файлах.

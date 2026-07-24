@@ -1,0 +1,33 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Models & cache
+*.gguf
+*.bin
+*.pt
+*.onnx
+models/
+.cache/
+
+# Output
+output/
+*.wav
+*.flac
+!testdata/
+
+# Env
+.env
+.env.*
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

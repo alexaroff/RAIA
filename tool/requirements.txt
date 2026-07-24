@@ -1,28 +1,21 @@
-# RAIA Tool — Phase 1 (Local Transcription)
-# Target: macOS Apple Silicon (M2 8 GB and up)
-# Later: pyproject.toml + uv
+# Временный файл для справки.
+# Основной источник правды — pyproject.toml
+#
+# Рекомендуемый способ установки:
+#   cd tool
+#   pip install -e ".[vad]"
+#
+# или через uv:
+#   uv pip install -e ".[vad]"
 
-# --- Core ---
-python>=3.11
-
-# --- Transcription (Apple Silicon optimized) ---
 mlx>=0.22.0
 mlx-whisper>=0.4.3
-
-# Optional but recommended for VAD (adds ~torch, keep threads low)
-# silero-vad>=5.1
-# torch          # will be pulled by silero-vad; use MPS backend on Mac
-# torchaudio
-
-# --- Audio ---
-# ffmpeg must be installed system-wide: brew install ffmpeg
 soundfile>=0.12.1
 numpy>=1.26
-
-# --- Utils ---
 rich>=13.0
 python-dotenv>=1.0
 
-# --- Future (UI, analysis) ---
-# gradio>=4.44.0
-# llama-cpp-python   # or mlx-lm for GigaChat-like models
+# optional (VAD):
+# silero-vad>=5.1
+# torch
+# torchaudio
