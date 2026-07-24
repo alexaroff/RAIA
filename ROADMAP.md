@@ -23,8 +23,8 @@
 **Статус: 🔄 В процессе**
 
 - ✅ `01_Sourcing` — полностью наполнен (23 июля 2026)
-- 📋 `02_Screening` — **следующий приоритет**
-- 📋 `03_Interviewing`
+- ✅ `02_Screening` — полностью наполнен (24 июля 2026)
+- 📋 `03_Interviewing` — следующий
 - 📋 `04_Assessment`
 - 📋 `05_Offer_&_Negotiation`
 - 📋 `06_Onboarding`
@@ -59,22 +59,25 @@
 ### v1.2 — Поиск кандидатов (01_Sourcing)
 **Статус: ✅ Завершено** (23 июля 2026)
 
+### v1.3 — Скрининг (02_Screening)
+**Статус: ✅ Завершено** (24 июля 2026)
+
 Полный справочник:
 - introduction.md
-- search_strategies.md (Boolean + X-Ray)
-- platforms.md (LinkedIn, GitHub, HeadHunter, Telegram, нишевые платформы)
-- passive_candidates.md
-- outreach_playbook.md
-- templates.md
-- talent_pool_and_ats.md
+- resume_screening.md
+- criteria_and_scorecards.md
+- phone_video_screen.md
+- red_flags.md
+- handover.md
 - metrics.md
 - ai_tools.md
-
-### v1.3 — Скрининг (02_Screening)
-**Статус: 📋 Следующий приоритет**
+- templates.md
+- README.md раздела обновлён
 
 ### v1.4 — Интервью и оценка
-**Статус: 📋 Планируется**
+**Статус: 📋 Следующий приоритет**
+
+Разделы `03_Interviewing` + `04_Assessment`
 
 ### v1.5 — Оффер, переговоры, онбординг
 **Статус: 📋 Планируется**
