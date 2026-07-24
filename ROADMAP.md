@@ -24,7 +24,7 @@
 
 - ✅ `01_Sourcing` — полностью наполнен (23 июля 2026)
 - ✅ `02_Screening` — полностью наполнен (24 июля 2026)
-- 📋 `03_Interviewing` — следующий
+- ✅ `03_Interviewing` — полностью наполнен (24 июля 2026)
 - 📋 `04_Assessment`
 - 📋 `05_Offer_&_Negotiation`
 - 📋 `06_Onboarding`
@@ -74,13 +74,27 @@
 - templates.md
 - README.md раздела обновлён
 
-### v1.4 — Интервью и оценка
+### v1.4 — Интервью (03_Interviewing)
+**Статус: ✅ Завершено** (24 июля 2026)
+
+Полный справочник:
+- introduction.md
+- interview_methodologies.md
+- structured_interviewing.md
+- behavioral_and_star.md
+- question_banks.md
+- conducting_the_interview.md
+- note_taking_and_evaluation.md
+- common_mistakes.md
+- candidate_experience.md
+- ai_tools.md
+- templates.md
+- README.md раздела обновлён
+
+### v1.5 — Оценка, оффер, переговоры, онбординг
 **Статус: 📋 Следующий приоритет**
 
-Разделы `03_Interviewing` + `04_Assessment`
-
-### v1.5 — Оффер, переговоры, онбординг
-**Статус: 📋 Планируется**
+Разделы `04_Assessment` + `05_Offer_&_Negotiation` + `06_Onboarding`
 
 ### v1.6 — AI в рекрутменте
 **Статус: 📋 Планируется**
