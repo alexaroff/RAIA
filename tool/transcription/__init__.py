@@ -1,2 +1,22 @@
-# Transcription module
-# Will contain local STT pipeline (whisper.cpp / faster-whisper + Silero VAD)
+"""
+RAIA Tool — Transcription module (fully local, Apple Silicon optimized)
+
+Phase 1 stack:
+  - Preprocess: FFmpeg → 16 kHz mono WAV
+  - VAD (optional): Silero
+  - STT: mlx-whisper (large-v3-turbo by default)
+
+Usage:
+    from tool.transcription import LocalTranscriber, transcribe_file
+
+    result = transcribe_file("interview.webm", model="turbo", language="ru")
+    print(result.text)
+"""
+
+from .pipeline import LocalTranscriber, TranscriptionResult, transcribe_file
+
+__all__ = [
+    "LocalTranscriber",
+    "TranscriptionResult",
+    "transcribe_file",
+]
