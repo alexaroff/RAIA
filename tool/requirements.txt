@@ -1,0 +1,28 @@
+# RAIA Tool — temporary requirements
+# Позже переедем на pyproject.toml + uv lock
+
+# Core
+python>=3.11
+
+# Audio / Transcription (варианты будут уточнены в Фазе 1)
+# faster-whisper
+# whisperx
+# openai-whisper
+# silero-vad
+
+# Diarization
+# pyannote.audio
+
+# LLM
+# llama-cpp-python
+# или ollama / lmstudio integration
+
+# UI
+gradio>=4.44.0
+
+# Utils
+python-dotenv
+numpy
+soundfile
+ffmpeg-python
+rich
