@@ -1,0 +1,22 @@
+# RAIA Tool — transcription defaults
+# Priority: CLI flags > RAIA_* env vars > this file > hardcoded defaults
+
+[transcription]
+# "auto" | "turbo" | "medium" | "small" | "large"
+model = "auto"
+
+# "mlx-whisper" | "gigaam"
+backend = "mlx-whisper"
+
+language = "ru"
+use_vad = true
+word_timestamps = true
+
+# Below this duration (seconds) VAD is skipped
+vad_min_duration_s = 20.0
+
+# Above this duration + VAD present → segment-wise transcription
+segment_wise_threshold_s = 90.0
+
+# Further split VAD segments longer than this
+max_segment_s = 30.0

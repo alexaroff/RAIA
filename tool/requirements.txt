@@ -1,12 +1,7 @@
-# Временный файл для справки.
-# Основной источник правды — pyproject.toml
-#
-# Рекомендуемый способ установки:
-#   cd tool
-#   pip install -e ".[vad]"
-#
-# или через uv:
-#   uv pip install -e ".[vad]"
+# См. pyproject.toml — основной источник правды.
+# Установка:
+#   cd tool && pip install -e ".[vad]"
+#   # опционально: pip install -e ".[vad,gigaam]"
 
 mlx>=0.22.0
 mlx-whisper>=0.4.3
@@ -14,8 +9,4 @@ soundfile>=0.12.1
 numpy>=1.26
 rich>=13.0
 python-dotenv>=1.0
-
-# optional (VAD):
-# silero-vad>=5.1
-# torch
-# torchaudio
+psutil>=5.9
